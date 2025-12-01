@@ -1,12 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card" style="max-width: 400px; margin: 0 auto;">
-    <h2 class="text-center">Login</h2>
+    <h2 class="text-center">Join Smart Hostel</h2>
     <form method="POST">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Login</button>
+        <button type="submit">Create Account</button>
     </form>
-    <p class="text-center">New here? <a href="{% url 'register' %}" style="color: var(--blue);">Create Account</a></p>
 </div>
 {% endblock %}
