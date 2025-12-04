@@ -1,28 +1,92 @@
+import os
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
+# New email-related imports
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.contrib.sites.shortcuts import get_current_site
+from django.contrib import messages
 from .forms import UserRegisterForm, QuizForm
-from .models import RoommateProfile
+from .models import RoommateProfile, User
+
+
+def email_user(request, user):
+    """Sends a verification email to the user."""
+    try:
+        current_site = get_current_site(request)
+        mail_subject = 'Activate your Roommate Finder account.'
+        message = render_to_string('acc_active_email.html', {
+            'user': user,
+            'domain': current_site.domain,
+            'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+            'token': default_token_generator.make_token(user),
+        })
+        to_email = user.email
+        send_mail(
+            mail_subject,
+            message,
+            os.getenv('EMAIL_ADDRESS'),
+            [to_email]
+        )
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False
+
+def activate(request, uidb64, token):
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        # Set the user as active and save
+        user.is_active = True
+        user.save()
+        login(request, user)
+        messages.success(request, 'Thank you for your email confirmation. You are now logged in!')
+        return redirect('quiz')
+    else:
+        messages.error(request, 'Activation link is invalid or expired!')
+        return redirect('register')
+
 
 def register_view(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            user = form.save(commit=False)
+            user.is_active = False
             user.set_password(form.cleaned_data['password'])
             user.save()
-            login(request, user)
-            return redirect('quiz')
+            print("--- EMAIL DEBUG START ---")
+            print(f"User: {os.getenv('EMAIL_ADDRESS')}")
+            print(f"Password Read: {os.getenv('EMAIL_HOST_PASSWORD')}")
+            print("--- EMAIL DEBUG END ---")
+
+            if email_user(request, user):
+                messages.info(request, 'Please confirm your email address to complete the registration.')
+                return redirect('login')
+            else:
+                user.delete()
+                messages.error(request, 'Registration failed due to an email error. Please try again.')
+                return redirect('register')
     else:
         form = UserRegisterForm()
     return render(request, 'register.html', {'form': form})
+
 
 def login_view(request):
     if request.method == 'POST':
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
-            user = form.get_user()
+            user  = form.get_user()
             login(request, user)
             try:
                 if user.roommateprofile:
@@ -58,24 +122,19 @@ def dashboard_view(request):
 
     for other in all_profiles:
         score = 100
-        
-        # 1. Sleep Schedule Impact (High Weight: 25 pts)
+
         if my_profile.sleep_schedule != other.sleep_schedule:
             score -= 25
-            
-        # 2. Study Habit Impact (Medium Weight: 15 pts)
+
         if my_profile.study_habit != other.study_habit:
             score -= 15
 
-        # 3. Cleanliness Diff (Weight: 5 pts per level diff)
         clean_diff = abs(my_profile.cleanliness_level - other.cleanliness_level)
         score -= (clean_diff * 5)
 
-        # 4. Noise Tolerance Diff (Weight: 5 pts per level diff)
         noise_diff = abs(my_profile.noise_tolerance - other.noise_tolerance)
         score -= (noise_diff * 5)
 
-        # Cap score at 0 minimum
         final_score = max(score, 0)
 
         matches.append({
@@ -87,7 +146,6 @@ def dashboard_view(request):
             'profile': other
         })
 
-    # Sort by score descending (Highest first)
     matches.sort(key=lambda x: x['score'], reverse=True)
     top_matches = matches[:5]
 
