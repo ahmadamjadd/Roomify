@@ -64,5 +64,4 @@ class QuizForm(forms.ModelForm):
             'cleanliness_level': forms.Select(attrs={'class': 'form-control'}),
             'noise_tolerance': forms.Select(attrs={'class': 'form-control'}),
             'study_habit': forms.Select(attrs={'class': 'form-control'}),
-            'hostel_room_no': forms.TextInput(attrs={'class': 'form-control'}),
         }

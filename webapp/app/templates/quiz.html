@@ -4,12 +4,9 @@
     <h2 class="text-center" style="color: var(--navy);">Behavioral Quiz</h2>
     <p class="text-center">Help the AI find your perfect roommate.</p>
     <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-    
+
     <form method="POST">
         {% csrf_token %}
-        
-        <label><strong>Hostel Room No:</strong></label>
-        {{ form.hostel_room_no }}
 
         <label><strong>Sleep Schedule:</strong></label>
         {{ form.sleep_schedule }}
