@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Your Matches · Roommate Matcher{% endblock %}
+
+{% block content %}
+<h1>Top Matches for {{ current_user.username }}</h1>
+<p class="muted">
+    Compatibility is calculated using your sleep time, cleanliness level, noise tolerance,
+    and study habits. This is a simple formula now (no ML) – perfect for demo to sir.
+</p>
+
+{% if matches %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Room</th>
+                <th>Compatibility</th>
+                <th>Main Traits</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in matches %}
+                <tr>
+                    <td>{{ m.user.username }}</td>
+                    <td>{{ m.user.hostel_room }}</td>
+                    <td><strong>{{ m.score }}%</strong></td>
+                    <td>
+                        Noise tolerance: {{ m.user.noise_tolerance }} |
+                        Sleep: {{ m.user.get_sleep_time_display }} |
+                        Cleanliness: {{ m.user.cleanliness_level }}
+                    </td>
+                    <td>
+                        <a href="{% url 'profile' m.user.id %}">View profile</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No other users yet. Ask a few friends to fill the signup + quiz, then refresh this page.</p>
+{% endif %}
+
+{% endblock %}
+
+
