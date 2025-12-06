@@ -63,7 +63,6 @@ class EmailAuthenticationForm(AuthenticationForm):
         return self.cleaned_data
 
 class QuizForm(forms.ModelForm):
-    # This is for NEW users
     class Meta:
         model = RoommateProfile
         exclude = ['user']
