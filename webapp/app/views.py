@@ -11,7 +11,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.contrib import messages
 from .models import RoommateProfile, User, MatchInteraction
 from .forms import UserRegisterForm, QuizForm, EmailAuthenticationForm, UpdateForm
-from django.contrib.admin.views.decorators import staff_member_required # Import this
+from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Max, Avg
 
 

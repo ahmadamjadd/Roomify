@@ -36,13 +36,10 @@ class MatchInteraction(models.Model):
     viewer = models.ForeignKey(User, related_name='viewer_interactions', on_delete=models.CASCADE)
     target = models.ForeignKey(User, related_name='target_interactions', on_delete=models.CASCADE)
     match_score = models.IntegerField()
-    timestamp = models.DateTimeField(auto_now=True) # Updates every time they see each other
+    timestamp = models.DateTimeField(auto_now=True)
     whatsapp_clicked = models.BooleanField(default=False)
 
     class Meta:
-        # Ensures we don't count the same pair multiple times for "Unique Matches Viewed"
-        # unless you specifically want to track every single page refresh.
-        # unique_together = ('viewer', 'target')
         pass
 
     def __str__(self):
