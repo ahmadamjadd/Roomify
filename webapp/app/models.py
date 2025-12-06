@@ -1,8 +1,23 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
 
 class RoommateProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    # --- NEW: Phone Number with Strict Verification (Format Check) ---
+    phone_regex = RegexValidator(
+        regex=r'^03\d{9}$',
+        message="Phone number must be entered in the format: '03001234567'. 11 digits allowed."
+    )
+    
+    phone_number = models.CharField(
+        validators=[phone_regex], 
+        max_length=11, 
+        blank=True, 
+        null=True,
+        help_text="Format: 03001234567"
+    )
 
     SLEEP_CHOICES = [
         ('Early', 'Early Bird (10 PM - 6 AM)'),

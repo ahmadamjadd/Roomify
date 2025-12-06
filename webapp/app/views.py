@@ -1,7 +1,6 @@
 import os
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
-from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
@@ -12,7 +11,6 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.contrib import messages
 from .forms import UserRegisterForm, QuizForm, EmailAuthenticationForm
 from .models import RoommateProfile, User
-
 
 def email_user(request, user):
     """Sends a verification email to the user."""
@@ -45,7 +43,6 @@ def activate(request, uidb64, token):
         user = None
 
     if user is not None and default_token_generator.check_token(user, token):
-        # Set the user as active and save
         user.is_active = True
         user.save()
         login(request, user)
@@ -54,7 +51,6 @@ def activate(request, uidb64, token):
     else:
         messages.error(request, 'Activation link is invalid or expired!')
         return redirect('register')
-
 
 def register_view(request):
     if request.method == 'POST':
@@ -75,7 +71,6 @@ def register_view(request):
         form = UserRegisterForm()
     return render(request, 'register.html', {'form': form})
 
-
 def login_view(request):
     if request.method == 'POST':
         form = EmailAuthenticationForm(data=request.POST)
@@ -83,8 +78,10 @@ def login_view(request):
             user  = form.get_user()
             login(request, user)
             try:
-                if user.roommateprofile:
+                if hasattr(user, 'roommateprofile'):
                     return redirect('dashboard')
+                else:
+                    return redirect('quiz')
             except RoommateProfile.DoesNotExist:
                 return redirect('quiz')
     else:
@@ -93,6 +90,10 @@ def login_view(request):
 
 @login_required
 def quiz_view(request):
+    # Check if user already has a profile to prevent duplicate quizzes
+    if hasattr(request.user, 'roommateprofile'):
+        return redirect('dashboard')
+
     if request.method == 'POST':
         form = QuizForm(request.POST)
         if form.is_valid():
@@ -134,9 +135,9 @@ def dashboard_view(request):
         matches.append({
             'name': other.user.first_name or other.user.username,
             'score': final_score,
-            # 'room': other.hostel_room_no,
             'sleep': other.sleep_schedule,
             'clean': other.cleanliness_level,
+            'phone': other.phone_number, # Explicitly passed for template
             'profile': other
         })
 
