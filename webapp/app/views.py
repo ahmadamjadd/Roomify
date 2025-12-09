@@ -13,7 +13,13 @@ from .models import RoommateProfile, User, MatchInteraction
 from .forms import UserRegisterForm, QuizForm, EmailAuthenticationForm, UpdateForm
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Max, Avg
-
+  
+import numpy as np
+import pandas as pd
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import StandardScaler
+from django.db.models import Max, Avg
+  
 
 def email_user(request, user):
     """Sends a verification email to the user."""
@@ -123,65 +129,7 @@ def add_phone_number(request):
         else:
             messages.error(request, "Please enter a valid phone number starting with 03.")
     return redirect('dashboard')
-
-@login_required
-def dashboard_view(request):
-    try:
-        my_profile = request.user.roommateprofile
-    except RoommateProfile.DoesNotExist:
-        return redirect('quiz')
-
-    missing_phone = False
-    phone_form = None
-
-    if not my_profile.phone_number:
-        missing_phone = True
-        phone_form = UpdateForm(instance=my_profile)
-
-    all_profiles = RoommateProfile.objects.exclude(user=request.user)
-    matches = []
-
-    for other in all_profiles:
-        # --- YOUR EXISTING DISTANCE METRIC LOGIC ---
-        score = 100
-        if my_profile.sleep_schedule != other.sleep_schedule: score -= 25
-        if my_profile.study_habit != other.study_habit: score -= 15
-        score -= (abs(my_profile.cleanliness_level - other.cleanliness_level) * 5)
-        score -= (abs(my_profile.noise_tolerance - other.noise_tolerance) * 5)
-        final_score = max(score, 0)
-        # -------------------------------------------
-
-        matches.append({
-            'name': other.user.first_name or other.user.username,
-            'score': final_score,
-            'sleep': other.sleep_schedule,
-            'clean': other.cleanliness_level,
-            'phone': other.phone_number,
-            'profile': other,
-            'user_id': other.user.id # Needed for the click tracking link
-        })
-
-    matches.sort(key=lambda x: x['score'], reverse=True)
-    top_matches = matches[:5]
-
-    # --- METRIC LOGGING (Metrics 1 & 3) ---
-    # We record that these matches were "Viewed"
-    for match in top_matches:
-        # update_or_create ensures we track "Unique" views per pair (or updates the timestamp if seen again)
-        MatchInteraction.objects.update_or_create(
-            viewer=request.user,
-            target=match['profile'].user,
-            defaults={'match_score': match['score']}
-        )
-    # --------------------------------------
-
-    context = {
-        'matches': top_matches,
-        'missing_phone': missing_phone,
-        'phone_form': phone_form
-    }
-
-    return render(request, 'dashboard.html', context)
+ 
 
 @login_required
 def track_whatsapp_click(request, target_id):
@@ -190,7 +138,7 @@ def track_whatsapp_click(request, target_id):
     """
     try:
         target_user = User.objects.get(pk=target_id)
-        # Find the interaction record and mark it as clicked
+  
         interaction = MatchInteraction.objects.filter(
             viewer=request.user,
             target=target_user
@@ -200,7 +148,7 @@ def track_whatsapp_click(request, target_id):
             interaction.whatsapp_clicked = True
             interaction.save()
 
-        # Redirect to WhatsApp
+  
         phone_number = target_user.roommateprofile.phone_number
         if phone_number:
             wa_url = f"https://wa.me/{phone_number}?text=Hey!%20I%20saw%20we%20matched%20on%20Roomify."
@@ -241,3 +189,138 @@ def metrics_dashboard(request):
         }
 
     return render(request, 'metrics.html', context)
+
+
+  
+def get_knn_score(my_profile, all_profiles, k=5):
+    """
+    Calculates a k-NN similarity score for each profile relative to the user.
+    The score is based on the inverse of the distance (similarity).
+    """
+    if not all_profiles:
+        return {}
+  
+    sleep_map = {'Early': 0, 'Late': 1}
+    study_map = {'Morning': 0, 'Night': 1, 'Mix': 0.5}
+
+    def extract_features(profile):
+        return [
+            sleep_map.get(profile.sleep_schedule, 0.5), # Scale is 0 to 1
+            profile.cleanliness_level,                   # Scale is 1 to 5
+            profile.noise_tolerance,                     # Scale is 1 to 5
+            study_map.get(profile.study_habit, 0.5),     # Scale is 0 to 1
+        ]
+
+  
+    profile_data = [extract_features(p) for p in list(all_profiles) + [my_profile]]
+    profile_users = [p.user.id for p in all_profiles] + [my_profile.user.id]
+
+    my_profile_index = len(profile_users) - 1
+
+  
+    df = pd.DataFrame(profile_data, columns=['sleep', 'cleanliness', 'noise', 'study'])
+    
+    scaler = StandardScaler()
+    scaled_features = scaler.fit_transform(df.values)
+    
+    X_train = scaled_features[:-1] # All others
+    X_test = scaled_features[my_profile_index].reshape(1, -1) # Current user
+
+    if X_train.shape[0] < k:
+        k = X_train.shape[0] # Adjust K if not enough neighbors
+
+    if k == 0:
+        return {}
+
+    knn = NearestNeighbors(n_neighbors=k, algorithm='brute', metric='euclidean')
+    knn.fit(X_train)
+    distances, indices = knn.kneighbors(X_test, n_neighbors=X_train.shape[0], return_distance=True)
+    distances = distances.flatten()
+    indices = indices.flatten()
+    max_distance = np.max(distances) if distances.size > 0 else 1 
+    
+    knn_scores = {}
+    for dist, idx in zip(distances, indices):
+  
+        normalized_distance = dist / (max_distance + 1e-6)
+        similarity = (1 - normalized_distance) * 100 # 0 (low sim) to 100 (high sim)
+        
+  
+        target_user_id = profile_users[idx]
+        knn_scores[target_user_id] = round(similarity)
+
+    return knn_scores
+
+@login_required
+def dashboard_view(request):
+    try:
+        my_profile = request.user.roommateprofile
+    except RoommateProfile.DoesNotExist:
+        return redirect('quiz')
+
+    missing_phone = False
+    phone_form = None
+
+    if not my_profile.phone_number:
+        missing_phone = True
+        phone_form = UpdateForm(instance=my_profile)
+
+    all_profiles = RoommateProfile.objects.exclude(user=request.user)
+    
+    knn_scores = get_knn_score(my_profile, all_profiles, k=5) 
+    
+    matches = []
+    
+  
+    print(f"\n--- MATCHING PROCESS FOR USER: {request.user.username} ---")
+    
+    for other in all_profiles:
+  
+        heuristic_score = 100
+        if my_profile.sleep_schedule != other.sleep_schedule: heuristic_score -= 25
+        if my_profile.study_habit != other.study_habit: heuristic_score -= 15
+        heuristic_score -= (abs(my_profile.cleanliness_level - other.cleanliness_level) * 5)
+        heuristic_score -= (abs(my_profile.noise_tolerance - other.noise_tolerance) * 5)
+        final_heuristic_score = max(heuristic_score, 0)
+  
+ 
+        ml_score = knn_scores.get(other.user.id, 0) 
+  
+        combined_score = round((0.6 * final_heuristic_score) + (0.4 * ml_score))
+  
+        print(f"Target: {other.user.username:<10} | Heuristic: {final_heuristic_score:>3}% | KNN: {ml_score:>3}% | Combined (60/40): {combined_score:>3}%")
+        
+        matches.append({
+            'name': other.user.first_name or other.user.username,
+            'score': combined_score,        
+            'sleep': other.sleep_schedule,
+            'clean': other.cleanliness_level,
+            'phone': other.phone_number,
+            'profile': other,
+            'user_id': other.user.id
+        })
+
+    print("---------------------------------------------------\n")
+  
+
+    matches.sort(key=lambda x: x['score'], reverse=True)
+    top_matches = matches[:5]
+
+  
+  
+    for match in top_matches:
+  
+        MatchInteraction.objects.update_or_create(
+            viewer=request.user,
+            target=match['profile'].user,
+            defaults={'match_score': match['score']}
+        )
+  
+
+    context = {
+        'matches': top_matches,
+        'missing_phone': missing_phone,
+        'phone_form': phone_form
+    }
+
+    return render(request, 'dashboard.html', context)
