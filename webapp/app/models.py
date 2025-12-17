@@ -18,11 +18,11 @@ class RoommateProfile(models.Model):
     )
     
     GENDER_CHOICES = [
-            ('', 'Select Gender'), # Used for validation
+            ('', 'Select Gender'),
             ('M', 'Male'),
             ('F', 'Female'),
         ]
-        # Set default to empty string so we can detect if they haven't chosen yet
+
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='', blank=True)
     is_paying = models.BooleanField(default=False)
 
