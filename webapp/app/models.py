@@ -16,6 +16,15 @@ class RoommateProfile(models.Model):
         blank=True,
         null=True
     )
+    
+    GENDER_CHOICES = [
+            ('', 'Select Gender'), # Used for validation
+            ('M', 'Male'),
+            ('F', 'Female'),
+        ]
+        # Set default to empty string so we can detect if they haven't chosen yet
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='', blank=True)
+    is_paying = models.BooleanField(default=False)
 
     SLEEP_CHOICES = [('Early', 'Early Bird'), ('Late', 'Night Owl')]
     sleep_schedule = models.CharField(max_length=10, choices=SLEEP_CHOICES)

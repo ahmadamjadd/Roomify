@@ -1,6 +1,20 @@
 {% extends 'base.html' %}
 {% block content %}
 
+{% if not is_paying %}
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); border-radius: 15px;">
+    <div class="card-body p-4 text-white d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold mb-1"><i class="bi bi-gem me-2"></i>Unlock Your Best Matches</h5>
+            <p class="mb-0 opacity-90 small">You are currently hidden from your top 3 most compatible roommates.</p>
+        </div>
+        <a href="{% url 'payment_page' %}" class="btn btn-light fw-bold px-4 rounded-pill shadow-sm">
+            See Top Matches
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <div class="row justify-content-center">
     <div class="col-lg-8 col-md-10">
 
@@ -98,4 +112,42 @@
 
     </div>
 </div>
+
+
+{% if show_gender_modal %}
+<div class="modal fade" id="genderModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-primary text-white">
+                <h5 class="modal-title fw-bold">One Last Step!</h5>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted">To show you the most compatible roommates, we need to know your gender. You will only be matched with students of the same gender.</p>
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="update_gender" value="1">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">I am:</label>
+                        <select name="gender" class="form-select form-select-lg" required>
+                            <option value="" selected disabled>Choose...</option>
+                            <option value="M">Male</option>
+                            <option value="F">Female</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Find My Matches</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var myModal = new bootstrap.Modal(document.getElementById('genderModal'));
+        myModal.show();
+    });
+</script>
+{% endif %}
+
+
 {% endblock %}

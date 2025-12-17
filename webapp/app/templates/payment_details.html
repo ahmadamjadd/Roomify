@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow border-0" style="border-radius: 15px;">
+            <div class="card-body p-5 text-center">
+                <h2 class="fw-bold mb-3" style="color: var(--navy);">Get Premium Access</h2>
+                <p class="text-muted">Pay once and see your most compatible roommates immediately.</p>
+                
+                <div class="my-4 p-4 rounded-3" style="background-color: #f8f9fa; border: 2px dashed #dee2e6;">
+                    <h5 class="text-muted small text-uppercase fw-bold mb-2">Total Amount</h5>
+                    <h2 class="display-5 fw-bold text-success mb-3">Rs. 50</h2>
+                    <hr>
+                    <p class="mb-1 fw-bold">Sadapay Account: 03316074205</p>
+                    <p class="text-muted small">Account Name: Muhammad Zayan</p>
+                </div>
+
+                <div class="alert alert-info border-0 shadow-sm mb-4">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Send the <strong>Rs. 50</strong> fee, take a screenshot, and click below to send it to us.
+                </div>
+
+                <a href="https://wa.me/03316074205?text=Hi!%20I've%20sent%20the%20Rs.50%20payment%20for%20Roomify%20Premium.%20Attaching%20my%20screenshot." 
+                   class="btn btn-success btn-lg w-100 fw-bold py-3 shadow-sm">
+                   <i class="bi bi-whatsapp me-2"></i> Send Payment Proof
+                </a>
+                
+                <div class="mt-4">
+                    <a href="{% url 'dashboard' %}" class="text-decoration-none text-muted small">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

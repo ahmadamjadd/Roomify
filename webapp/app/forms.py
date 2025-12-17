@@ -86,3 +86,12 @@ class UpdateForm(forms.ModelForm):
         widgets = {
              'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '03001234567'}),
         }
+        
+class GenderUpdateForm(forms.ModelForm):
+    class Meta:
+        model = RoommateProfile
+        fields = ['gender', 'is_paying']
+        widgets = {
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'is_paying': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }

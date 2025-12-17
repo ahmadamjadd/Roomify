@@ -11,4 +11,5 @@ urlpatterns = [
     path('activate/<uidb64>/<token>/', views.activate, name='activate'),
     path('connect/<int:target_id>/', views.track_whatsapp_click, name='track_whatsapp'),
     path('metrics/', views.metrics_dashboard, name='metrics_dashboard'),
+    path('payment/', views.payment_page, name='payment_page'),  
 ]

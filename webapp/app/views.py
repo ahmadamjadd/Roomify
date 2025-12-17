@@ -10,7 +10,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.sites.shortcuts import get_current_site
 from django.contrib import messages
 from .models import RoommateProfile, User, MatchInteraction
-from .forms import UserRegisterForm, QuizForm, EmailAuthenticationForm, UpdateForm
+from .forms import UserRegisterForm, QuizForm, EmailAuthenticationForm, UpdateForm, GenderUpdateForm
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Max, Avg
 
@@ -130,7 +130,16 @@ def dashboard_view(request):
         my_profile = request.user.roommateprofile
     except RoommateProfile.DoesNotExist:
         return redirect('quiz')
-
+    
+    if request.method == 'POST' and 'update_gender' in request.POST:
+        gender = request.POST.get('gender')
+        if gender in ['M', 'F']:
+            my_profile.gender = gender
+            my_profile.save()
+            return redirect('dashboard')
+    
+    show_gender_modal = not my_profile.gender
+            
     missing_phone = False
     phone_form = None
 
@@ -138,9 +147,9 @@ def dashboard_view(request):
         missing_phone = True
         phone_form = UpdateForm(instance=my_profile)
 
-    all_profiles = RoommateProfile.objects.exclude(user=request.user)
+    all_profiles = RoommateProfile.objects.exclude(user=request.user).exclude(user__username='admin').filter(gender=my_profile.gender)
+    
     matches = []
-
     for other in all_profiles:
         score = 100
         if my_profile.sleep_schedule != other.sleep_schedule: score -= 25
@@ -160,24 +169,29 @@ def dashboard_view(request):
         })
 
     matches.sort(key=lambda x: x['score'], reverse=True)
-    top_matches = matches[:5]
 
-    for match in top_matches:
+    if my_profile.is_paying:
+        display_matches = matches[:5]
+    else:
+        display_matches = matches[3:8]
+
+    for match in display_matches:
         MatchInteraction.objects.update_or_create(
             viewer=request.user,
             target=match['profile'].user,
             defaults={'match_score': match['score']}
         )
-    # --------------------------------------
 
     context = {
-        'matches': top_matches,
+        'matches': display_matches,
         'missing_phone': missing_phone,
-        'phone_form': phone_form
+        'phone_form': phone_form,
+        'is_paying': my_profile.is_paying,
+        'show_gender_modal': show_gender_modal,
     }
 
     return render(request, 'dashboard.html', context)
-
+    
 @login_required
 def track_whatsapp_click(request, target_id):
     """
@@ -185,7 +199,6 @@ def track_whatsapp_click(request, target_id):
     """
     try:
         target_user = User.objects.get(pk=target_id)
-        # Find the interaction record and mark it as clicked
         interaction = MatchInteraction.objects.filter(
             viewer=request.user,
             target=target_user
@@ -195,7 +208,6 @@ def track_whatsapp_click(request, target_id):
             interaction.whatsapp_clicked = True
             interaction.save()
 
-        # Redirect to WhatsApp
         phone_number = target_user.roommateprofile.phone_number
         if phone_number:
             wa_url = f"https://wa.me/{phone_number}?text=Hey!%20I%20saw%20we%20matched%20on%20Roomify."
@@ -236,3 +248,7 @@ def metrics_dashboard(request):
         }
 
     return render(request, 'metrics.html', context)
+    
+@login_required
+def payment_page(request):
+    return render(request, 'payment_details.html')
