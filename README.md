@@ -1,5 +1,3 @@
-# Roomify
-
 # Roomify - Smart Hostel Roommate Matching Platform
 
 ## About
